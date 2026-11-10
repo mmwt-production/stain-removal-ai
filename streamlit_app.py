@@ -92,6 +92,7 @@ STAIN_TYPES = {
 
 st.title("🧺 染み抜き方法")
 st.caption("新人スタッフ向けの染み抜きガイドです。シミの種類を選ぶと、使用する薬品と処理手順が表示されます。")
+st.caption("これから当社が使用している薬品名を追加していきます。")
 
 st.markdown(
     '<h3 translate="no" lang="ja">シミの種類は?</h3>',
