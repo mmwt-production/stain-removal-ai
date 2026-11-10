@@ -1,17 +1,7 @@
 import json
-import os
 
 import streamlit as st
 import streamlit.components.v1 as components
-
-from image_analysis import COLOR_BUCKETS
-from matcher import rank_candidates
-from learning import make_bonus_fn
-import db
-from db import init_db, save_record, save_feedback
-
-UPLOAD_FOLDER = "static/uploads"
-os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 st.set_page_config(page_title="シミ抜き分析", page_icon="🧺", layout="centered")
 
@@ -42,176 +32,110 @@ def load_kb():
         return json.load(f)
 
 
-@st.cache_resource
-def setup_db():
-    init_db()
-    return True
-
-
 KB = load_kb()
-setup_db()
+STAINS = {s["id"]: s for s in KB["stains"]}
 
-SPREAD = ["広がる", "変化なし"]
-TEXTURE = ["ベタベタ・油っぽい", "サラサラ", "硬い・カピカピ"]
-SMELL = [
-    "無臭",
-    "食品っぽい・酸っぱいにおい",
-    "生臭い(鉄っぽいにおい)",
-    "油っぽいにおい",
-    "インク・薬品のようなにおい",
-    "汗・皮脂のようなにおい",
-]
-AGE = ["すぐ(まだ湿っている)", "数時間〜1日", "数日以上(乾いて古い)"]
-
-UNKNOWN = "わからない"
-
-# シミの種類(油性・水性など)。選ぶと、その種類に当てはまる候補だけで判定する
+# シミの種類 → (見出し, 例, 当てはまる知識データのid, 基本の考え方)
 STAIN_TYPES = {
-    "水性(飲み物・調味料)\n例: コーヒー、紅茶、醤油、ソース、ワイン、ジュース、ケチャップ": [
-        "coffee_tea", "soy_sauce", "wine", "ketchup",
-    ],
-    "水性インク\n例: 水性ボールペン、ゲルインクペン、水性マーカー": [
-        "water_based_pen",
-    ],
-    "油性インク\n例: 油性ボールペン、油性マジック、朱肉": [
-        "oil_based_pen", "oil_based_marker", "shuniku",
-    ],
-    "油性(油脂・化粧品)\n例: 食用油、ドレッシング、口紅、ファンデーション、皮脂・襟汚れ": [
-        "oil_food", "lipstick_makeup", "sebum_collar",
-    ],
-    "その他\n例: 血液、泥": ["blood", "mud"],
+    "water": (
+        "水性(飲み物・調味料)",
+        "コーヒー、紅茶、醤油、ソース、ワイン、ジュース、ケチャップ",
+        ["coffee_tea", "soy_sauce", "wine", "ketchup"],
+        [
+            "水に溶ける汚れなので、**できるだけ早く、水で薄める・たたき出す**のが基本です。",
+            "シミの**裏側にタオルを当て**、表から湿らせた布で軽くたたいて、汚れをタオル側へ移します(こすると広がります)。",
+            "コーヒー・紅茶・ワイン・ジュースの色素(タンニン系)は、水で落としたあと、残った色を**酸素系漂白剤**で抜きます。",
+            "**固形石けんは使わない**でください。色素が定着することがあります。",
+        ],
+    ),
+    "water_ink": (
+        "水性インク",
+        "水性ボールペン、ゲルインクペン、水性マーカー",
+        ["water_based_pen"],
+        [
+            "水に溶ける染料なので、早ければ水と中性洗剤でも落ちますが、**広がりやすい**ので注意します。",
+            "インクが乾いていたり落ちにくいときは、**消毒用エタノール**で溶かして、当て布に移します。",
+            "必ず**裏から当て布をして、たたくように**します。こすらないでください。",
+        ],
+    ),
+    "oil_ink": (
+        "油性インク",
+        "油性ボールペン、油性マジック、朱肉",
+        ["oil_based_pen", "oil_based_marker", "shuniku"],
+        [
+            "水では落ちません。**アルコール系の溶剤**(消毒用エタノールなど)でインクを溶かし、**下に敷いたタオルへ移す**のが基本です。",
+            "シミの**裏側にタオルを敷き、表から溶剤を含ませた布でたたきます**。こすると広がります。",
+            "落ちきるまで**乾燥機や高温は使わない**でください。熱で定着します。",
+            "エタノールは引火性があります。**火気の近くで使わない**でください。絹・レーヨンなどのデリケートな生地は、色落ちや変質のおそれがあるため、まず目立たない所で試してください。",
+        ],
+    ),
+    "oil": (
+        "油性(油脂・化粧品)",
+        "食用油、ドレッシング、口紅、ファンデーション、皮脂・襟汚れ",
+        ["oil_food", "lipstick_makeup", "sebum_collar"],
+        [
+            "油は水をはじくため、**先に油分を溶かして落とす**のが基本です。台所用洗剤(中性)やクレンジングを直接なじませます。",
+            "色素が残るときは、**油を落としたあとに**酸素系漂白剤を使います(油が残ったままだと漂白剤が効きにくくなります)。",
+            "洗濯機に入れる前に処理してください。洗って乾かしたシミは、かなり落ちにくくなります。",
+        ],
+    ),
+    "other": (
+        "その他",
+        "血液、泥",
+        ["blood", "mud"],
+        [
+            "血液などの**タンパク質汚れはお湯で固まる**ので、必ず**水(冷水)**で処理します。",
+            "泥は**完全に乾かしてから**ブラシで払い落とし、そのあと水洗いします。濡れたままこすると繊維に入り込みます。",
+        ],
+    ),
 }
-TYPE_OPTIONS = [UNKNOWN] + list(STAIN_TYPES.keys())
-COLORS = [UNKNOWN] + list(COLOR_BUCKETS.keys())
 
 st.title("🧺 シミ抜き分析")
+st.caption("シミの種類を選ぶと、使う薬品と落とし方が表示されます。")
 
-# ---------- 入力 ----------
-# 「状態」がブラウザ翻訳で「州」になるため、翻訳しない指定つきの見出しにする
 st.markdown(
-    '<h3 translate="no" lang="ja">状態を教えてください</h3>',
+    '<h3 translate="no" lang="ja">シミの種類は?</h3>',
     unsafe_allow_html=True,
 )
-st.caption("「わからない」を選んだ項目は無視して判定します。答えるほど精度が上がります。")
-
-stain_type = st.radio(
-    "シミの種類は?(油性・水性のどれに近いですか)",
-    TYPE_OPTIONS,
-    format_func=lambda t: t if t == UNKNOWN else t.replace("\n", "\n\n"),
+selected = st.radio(
+    "シミの種類(油性・水性のどれに近いですか)",
+    list(STAIN_TYPES.keys()),
+    index=None,
+    format_func=lambda k: f"{STAIN_TYPES[k][0]}\n\n例: {STAIN_TYPES[k][1]}",
+    label_visibility="collapsed",
 )
-manual_color = st.selectbox("シミの色", COLORS)
 
-spread = st.selectbox("水で濡らすと、シミは?", [UNKNOWN] + SPREAD)
-texture = st.selectbox("シミの手触りは?", [UNKNOWN] + TEXTURE)
-smell = st.selectbox("におい", [UNKNOWN] + SMELL)
-age = st.selectbox("シミが付いてからの経過時間", [UNKNOWN] + AGE)
-
-
-def none_if_unknown(v):
-    return None if v == UNKNOWN else v
-
-
-if st.button("判定する", type="primary", use_container_width=True):
-    filepath = ""
-    color_name = none_if_unknown(manual_color)
-
-    s_spread = none_if_unknown(spread)
-    s_texture = none_if_unknown(texture)
-    s_smell = none_if_unknown(smell)
-
-    answered = sum(x is not None for x in (color_name, s_spread, s_texture, s_smell))
-    if answered == 0:
-        st.warning("種類のほか、色や下の質問のいずれか1つ以上にも答えてください。")
-    else:
-        bonus_fn, n_learned = make_bonus_fn(KB)
-        if stain_type == UNKNOWN:
-            kb_used = KB
-        else:
-            allowed = STAIN_TYPES[stain_type]
-            kb_used = {"stains": [x for x in KB["stains"] if x["id"] in allowed]}
-        ranked = rank_candidates(
-            kb_used, color_name, s_spread, s_texture, s_smell, bonus_fn=bonus_fn
-        )
-        candidates = [r[0] for r in ranked]
-        max_score = (
-            (3 if color_name else 0)
-            + (2 if s_spread else 0)
-            + (2 if s_texture else 0)
-            + (2 if s_smell else 0)
-        )
-        scores = {r[0]["id"]: r[1] for r in ranked}
-        learned = {r[0]["id"]: (r[2], r[3]) for r in ranked}
-        predicted = ", ".join(c["name"] for c in candidates)
-        record_id = save_record(
-            filepath, color_name or UNKNOWN, spread, texture, predicted, smell
-        )
-
-        st.session_state["result"] = {
-            "record_id": record_id,
-            "image_path": filepath,
-            "color_name": color_name or UNKNOWN,
-            "candidates": candidates,
-            "scores": scores,
-            "learned": learned,
-            "n_learned": n_learned,
-            "max_score": max_score,
-            "answered": answered,
-            "age": age,
-            "feedback_done": False,
-        }
-
-# ---------- 結果 ----------
-res = st.session_state.get("result")
-if res:
+if selected:
+    title, examples, ids, principles = STAIN_TYPES[selected]
     st.divider()
-    st.header("判定結果")
-    st.write(f"シミの色: **{res['color_name']}**")
-    st.caption(f"🧠 学習データ: {res['n_learned']}件の記録を参考にしました")
-    if db.last_error:
-        st.warning(db.last_error)
-    if res["answered"] <= 2:
-        st.caption("回答が少ないため、候補は目安です。わかる項目を追加すると絞り込めます。")
+    st.header(f"{title}の落とし方")
 
-    if res["age"] == "数日以上(乾いて古い)":
-        st.warning(
-            "時間が経ったシミは色素が繊維の奥に定着している場合があります。"
-            "1回で落ちなければ、酸素系漂白剤でのつけ置き時間を長めに取ることを検討してください。"
-        )
+    st.subheader("基本の考え方")
+    for p in principles:
+        st.markdown(f"- {p}")
 
-    if not res["candidates"]:
-        st.info("該当する候補が見つかりませんでした。項目を見直してください。")
-    for c in res["candidates"]:
+    st.subheader("シミ別の薬品と手順")
+    for sid in ids:
+        c = STAINS[sid]
         with st.container(border=True):
-            pct = round(100 * res["scores"][c["id"]] / res["max_score"])
-            st.subheader(f"{c['name']}({c['category']})")
-            st.progress(pct / 100, text=f"一致度 {pct}%")
-            bonus, support = res["learned"][c["id"]]
-            if bonus > 0:
-                st.caption(f"🧠 過去の記録で裏付けあり(似た事例 {support}件)。順位を上げています")
-            elif bonus < 0:
-                st.caption("🧠 似た条件で外れた記録があるため、順位を下げています")
-            st.write("**使う薬品:** " + ", ".join(c["chemicals"]))
+            st.subheader(c["name"])
+            st.write("**使う薬品:** " + "、".join(c["chemicals"]))
             for i, step in enumerate(c["procedure"], 1):
                 st.write(f"{i}. {step}")
 
     st.error("※必ず生地の目立たない部分で試してから本番作業してください。")
+    st.caption(
+        "水洗い不可・ドライクリーニング表示の衣類、高価な衣類、落ちなかった場合は、"
+        "無理をせずクリーニング店に相談してください。"
+    )
 
-    # ---------- フィードバック ----------
-    st.divider()
-    st.subheader("この判定は合っていましたか?")
-    if res["feedback_done"]:
-        st.success("ご協力ありがとうございました。記録しました。")
-    else:
-        with st.form("feedback"):
-            is_correct = st.radio("結果", ["合っていた", "違っていた"], horizontal=True)
-            actual_stain = st.text_input("実際のシミの種類(わかれば)", placeholder="例: コーヒー")
-            actual_chemical = st.text_input("実際に使った薬品(わかれば)", placeholder="例: 中性洗剤")
-            if st.form_submit_button("記録する"):
-                save_feedback(
-                    res["record_id"], is_correct == "合っていた", actual_stain, actual_chemical
-                )
-                res["feedback_done"] = True
-                if db.last_error:
-                    st.warning(db.last_error)
-                else:
-                    st.rerun()
+    with st.expander("参考にした情報"):
+        st.markdown(
+            "- [Texas A&M AgriLife Extension: Quick Stain Removal Guide](https://agrilifeextension.tamu.edu/wp-content/uploads/2025/04/Quick-Stain-Removal-Guide.pdf)\n"
+            "- [Michigan State University Extension: 家庭でのシミ抜きガイド(E1453)](https://archive.lib.msu.edu/DMC/extension_publications/E1453/e1453_82.pdf)\n"
+            "- [Mississippi State University Extension: How to Remove Pesky Stains](https://extension.msstate.edu/blog/how-remove-pesky-stains)\n"
+            "- [Illinois Extension: Stain Removal Guide](https://dev.web.extension.illinois.edu/stain/general_fabrics.cfm)\n"
+            "- [Tide: How to Remove Ink Stains](https://tide.com/en-us/how-to-wash-clothes/how-to-remove-stains/ink-stains)\n"
+            "- [macaro-ni: 自宅でできるシミ抜き](https://macaro-ni.jp/11715)\n"
+            "- [All About: 油性汚れと漂白剤](https://news.allabout.co.jp/articles/o/tu/112259/)"
+        )
