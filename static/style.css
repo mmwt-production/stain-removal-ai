@@ -1,0 +1,93 @@
+body {
+  font-family: 'Consolas', 'Courier New', monospace;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px;
+  background-color: #0b1f26;
+  background-image:
+    linear-gradient(rgba(45, 212, 191, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(45, 212, 191, 0.08) 1px, transparent 1px);
+  background-size: 24px 24px;
+  color: #d7f5ee;
+  min-height: 100vh;
+}
+
+h1 {
+  color: #2dd4bf;
+  border-bottom: 2px solid #2dd4bf;
+  padding-bottom: 8px;
+  letter-spacing: 1px;
+}
+
+h1::before {
+  content: "⚗️ ";
+}
+
+h2 {
+  color: #7dd3fc;
+}
+
+label {
+  display: block;
+  margin-top: 12px;
+  font-weight: bold;
+  color: #99f6e4;
+}
+
+select, input[type="text"], input[type="file"], button {
+  width: 100%;
+  padding: 8px;
+  margin-top: 4px;
+  background-color: #0f2a33;
+  color: #d7f5ee;
+  border: 1px solid #2dd4bf;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+input[type="radio"] {
+  accent-color: #2dd4bf;
+  margin-right: 6px;
+}
+
+button {
+  margin-top: 16px;
+  background: #0f766e;
+  color: white;
+  border: 1px solid #2dd4bf;
+  border-radius: 6px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+button:hover {
+  background: #14b8a6;
+}
+
+.card {
+  border: 1px solid #2dd4bf;
+  border-radius: 8px;
+  padding: 12px;
+  margin-top: 12px;
+  background-color: rgba(15, 42, 51, 0.7);
+  box-shadow: 0 0 8px rgba(45, 212, 191, 0.2);
+}
+
+img {
+  border: 2px solid #2dd4bf;
+  border-radius: 6px;
+}
+
+a {
+  color: #7dd3fc;
+}
+
+hr {
+  border-color: #2dd4bf;
+  opacity: 0.3;
+}
+
+p[style*="color:red"] {
+  color: #f87171 !important;
+}

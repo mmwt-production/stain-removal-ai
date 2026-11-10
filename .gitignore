@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+feedback.db
+static/uploads/*
+!static/uploads/.gitkeep
+.venv/
+.streamlit/secrets.toml

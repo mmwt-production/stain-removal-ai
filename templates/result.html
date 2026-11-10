@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>判定結果</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h1>判定結果</h1>
+  <img src="/{{ image_path }}" width="200">
+  <p>検出色: {{ color_name }}</p>
+
+  {% if age_answer == "数日以上(乾いて古い)" %}
+  <p style="color:#facc15">⚠ 時間が経ったシミは色素が繊維の奥に定着している場合があります。1回で落ちなければ、酸素系漂白剤でのつけ置き時間を長めに取ることを検討してください。</p>
+  {% endif %}
+
+  {% for c in candidates %}
+  <div class="card">
+    <h2>{{ c.name }}({{ c.category }})</h2>
+    <p><b>使う薬品:</b> {{ c.chemicals | join(", ") }}</p>
+    <ol>
+      {% for step in c.procedure %}
+      <li>{{ step }}</li>
+      {% endfor %}
+    </ol>
+  </div>
+  {% else %}
+  <p>該当する候補が見つかりませんでした。項目を見直してください。</p>
+  {% endfor %}
+
+  <p style="color:red">※必ず生地の目立たない部分で試してから本番作業してください。</p>
+
+  <hr>
+  <h2>この判定は合っていましたか?</h2>
+  <form action="/feedback/{{ record_id }}" method="post">
+    <label>
+      <input type="radio" name="is_correct" value="yes" checked> 合っていた
+    </label>
+    <label>
+      <input type="radio" name="is_correct" value="no"> 違っていた
+    </label>
+
+    <label>実際のシミの種類(わかれば)</label>
+    <input type="text" name="actual_stain" placeholder="例: コーヒー">
+
+    <label>実際に使った薬品(わかれば)</label>
+    <input type="text" name="actual_chemical" placeholder="例: 中性洗剤">
+
+    <button type="submit">記録する</button>
+  </form>
+
+  <a href="/">戻る</a>
+</body>
+</html>

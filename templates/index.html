@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>シミ抜き判定</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <h1>シミ抜きAI判定</h1>
+  <form action="/analyze" method="post" enctype="multipart/form-data">
+    <label>シミの写真を撮影してください</label>
+    <input type="file" name="photo" accept="image/*" capture="environment" required>
+
+    <label>水で濡らすと、シミは?</label>
+    <select name="spread">
+      <option value="広がる">広がる</option>
+      <option value="変化なし">変化なし</option>
+    </select>
+
+    <label>シミの手触りは?</label>
+    <select name="texture">
+      <option value="ベタベタ・油っぽい">ベタベタ・油っぽい</option>
+      <option value="サラサラ">サラサラ</option>
+      <option value="硬い・カピカピ">硬い・カピカピ</option>
+    </select>
+
+    <label>におい</label>
+    <select name="smell">
+      <option value="無臭">無臭</option>
+      <option value="食品っぽい・酸っぱいにおい">食品っぽい・酸っぱいにおい</option>
+      <option value="生臭い(鉄っぽいにおい)">生臭い(鉄っぽいにおい)</option>
+      <option value="油っぽいにおい">油っぽいにおい</option>
+      <option value="インク・薬品のようなにおい">インク・薬品のようなにおい</option>
+      <option value="汗・皮脂のようなにおい">汗・皮脂のようなにおい</option>
+    </select>
+
+    <label>シミが付いてからの経過時間</label>
+    <select name="age">
+      <option value="すぐ(まだ湿っている)">すぐ(まだ湿っている)</option>
+      <option value="数時間〜1日">数時間〜1日</option>
+      <option value="数日以上(乾いて古い)">数日以上(乾いて古い)</option>
+    </select>
+
+    <button type="submit">判定する</button>
+  </form>
+</body>
+</html>
