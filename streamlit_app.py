@@ -64,6 +64,24 @@ SMELL = [
 AGE = ["すぐ(まだ湿っている)", "数時間〜1日", "数日以上(乾いて古い)"]
 
 UNKNOWN = "わからない"
+
+# シミの種類(油性・水性など)。選ぶと、その種類に当てはまる候補だけで判定する
+STAIN_TYPES = {
+    "水性(飲み物・調味料)\n例: コーヒー、紅茶、醤油、ソース、ワイン、ジュース、ケチャップ": [
+        "coffee_tea", "soy_sauce", "wine", "ketchup",
+    ],
+    "水性インク\n例: 水性ボールペン、ゲルインクペン、水性マーカー": [
+        "water_based_pen",
+    ],
+    "油性インク\n例: 油性ボールペン、油性マジック、朱肉": [
+        "oil_based_pen", "oil_based_marker", "shuniku",
+    ],
+    "油性(油脂・化粧品)\n例: 食用油、ドレッシング、口紅、ファンデーション、皮脂・襟汚れ": [
+        "oil_food", "lipstick_makeup", "sebum_collar",
+    ],
+    "その他\n例: 血液、泥": ["blood", "mud"],
+}
+TYPE_OPTIONS = [UNKNOWN] + list(STAIN_TYPES.keys())
 COLORS = [UNKNOWN] + list(COLOR_BUCKETS.keys())
 
 st.title("🧺 シミ抜き分析")
@@ -76,6 +94,11 @@ st.markdown(
 )
 st.caption("「わからない」を選んだ項目は無視して判定します。答えるほど精度が上がります。")
 
+stain_type = st.radio(
+    "シミの種類は?(油性・水性のどれに近いですか)",
+    TYPE_OPTIONS,
+    format_func=lambda t: t if t == UNKNOWN else t.replace("\n", "\n\n"),
+)
 manual_color = st.selectbox("シミの色", COLORS)
 
 spread = st.selectbox("水で濡らすと、シミは?", [UNKNOWN] + SPREAD)
@@ -98,11 +121,16 @@ if st.button("判定する", type="primary", use_container_width=True):
 
     answered = sum(x is not None for x in (color_name, s_spread, s_texture, s_smell))
     if answered == 0:
-        st.warning("いずれか1つ以上の質問に答えてください。")
+        st.warning("種類のほか、色や下の質問のいずれか1つ以上にも答えてください。")
     else:
         bonus_fn, n_learned = make_bonus_fn(KB)
+        if stain_type == UNKNOWN:
+            kb_used = KB
+        else:
+            allowed = STAIN_TYPES[stain_type]
+            kb_used = {"stains": [x for x in KB["stains"] if x["id"] in allowed]}
         ranked = rank_candidates(
-            KB, color_name, s_spread, s_texture, s_smell, bonus_fn=bonus_fn
+            kb_used, color_name, s_spread, s_texture, s_smell, bonus_fn=bonus_fn
         )
         candidates = [r[0] for r in ranked]
         max_score = (
