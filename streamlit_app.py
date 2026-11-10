@@ -13,7 +13,7 @@ from db import init_db, save_record, save_feedback
 UPLOAD_FOLDER = "static/uploads"
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-st.set_page_config(page_title="シミ抜きAI判定", page_icon="🧺", layout="centered")
+st.set_page_config(page_title="シミ抜き分析", page_icon="🧺", layout="centered")
 
 # ブラウザの自動翻訳による誤訳を防ぐ(日本語ページとして宣言し、翻訳を無効化)
 components.html(
@@ -66,7 +66,7 @@ AGE = ["すぐ(まだ湿っている)", "数時間〜1日", "数日以上(乾い
 UNKNOWN = "わからない"
 COLORS = [UNKNOWN] + list(COLOR_BUCKETS.keys())
 
-st.title("🧺 シミ抜きAI判定")
+st.title("🧺 シミ抜き分析")
 
 # ---------- 入力 ----------
 # 「状態」がブラウザ翻訳で「州」になるため、翻訳しない指定つきの見出しにする
