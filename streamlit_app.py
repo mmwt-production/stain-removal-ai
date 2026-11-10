@@ -3,7 +3,7 @@ import json
 import streamlit as st
 import streamlit.components.v1 as components
 
-st.set_page_config(page_title="シミ抜き分析", page_icon="🧺", layout="centered")
+st.set_page_config(page_title="染み抜き方法", page_icon="🧺", layout="centered")
 
 # ブラウザの自動翻訳による誤訳を防ぐ(日本語ページとして宣言し、翻訳を無効化)
 components.html(
@@ -90,52 +90,64 @@ STAIN_TYPES = {
     ),
 }
 
-st.title("🧺 シミ抜き分析")
-st.caption("シミの種類を選ぶと、使う薬品と落とし方が表示されます。")
+st.title("🧺 染み抜き方法")
+st.caption("シミの種類をタップすると、使う薬品と落とし方が下に開きます。")
 
 st.markdown(
     '<h3 translate="no" lang="ja">シミの種類は?</h3>',
     unsafe_allow_html=True,
 )
-selected = st.radio(
-    "シミの種類(油性・水性のどれに近いですか)",
-    list(STAIN_TYPES.keys()),
-    index=None,
-    format_func=lambda k: f"{STAIN_TYPES[k][0]}\n\n例: {STAIN_TYPES[k][1]}",
-    label_visibility="collapsed",
-)
+def render_guide(key):
+    title, examples, ids, principles = STAIN_TYPES[key]
+    with st.container(border=True):
+        st.markdown("##### 基本の考え方")
+        for p in principles:
+            st.markdown(f"- {p}")
 
-if selected:
-    title, examples, ids, principles = STAIN_TYPES[selected]
-    st.divider()
-    st.header(f"{title}の落とし方")
-
-    st.subheader("基本の考え方")
-    for p in principles:
-        st.markdown(f"- {p}")
-
-    st.subheader("シミ別の薬品と手順")
-    for sid in ids:
-        c = STAINS[sid]
-        with st.container(border=True):
-            st.subheader(c["name"])
-            st.write("**使う薬品:** " + "、".join(c["chemicals"]))
+        st.markdown("##### シミ別の薬品と手順")
+        for sid in ids:
+            c = STAINS[sid]
+            st.markdown(f"**{c['name']}**")
+            st.write("使う薬品: " + "、".join(c["chemicals"]))
             for i, step in enumerate(c["procedure"], 1):
                 st.write(f"{i}. {step}")
+            st.write("")
 
-    st.error("※必ず生地の目立たない部分で試してから本番作業してください。")
-    st.caption(
-        "水洗い不可・ドライクリーニング表示の衣類、高価な衣類、落ちなかった場合は、"
-        "無理をせずクリーニング店に相談してください。"
-    )
-
-    with st.expander("参考にした情報"):
-        st.markdown(
-            "- [Texas A&M AgriLife Extension: Quick Stain Removal Guide](https://agrilifeextension.tamu.edu/wp-content/uploads/2025/04/Quick-Stain-Removal-Guide.pdf)\n"
-            "- [Michigan State University Extension: 家庭でのシミ抜きガイド(E1453)](https://archive.lib.msu.edu/DMC/extension_publications/E1453/e1453_82.pdf)\n"
-            "- [Mississippi State University Extension: How to Remove Pesky Stains](https://extension.msstate.edu/blog/how-remove-pesky-stains)\n"
-            "- [Illinois Extension: Stain Removal Guide](https://dev.web.extension.illinois.edu/stain/general_fabrics.cfm)\n"
-            "- [Tide: How to Remove Ink Stains](https://tide.com/en-us/how-to-wash-clothes/how-to-remove-stains/ink-stains)\n"
-            "- [macaro-ni: 自宅でできるシミ抜き](https://macaro-ni.jp/11715)\n"
-            "- [All About: 油性汚れと漂白剤](https://news.allabout.co.jp/articles/o/tu/112259/)"
+        st.error("※必ず生地の目立たない部分で試してから本番作業してください。")
+        st.caption(
+            "水洗い不可・ドライクリーニング表示の衣類、高価な衣類、落ちなかった場合は、"
+            "無理をせずクリーニング店に相談してください。"
         )
+
+
+if "selected" not in st.session_state:
+    st.session_state["selected"] = None
+
+# 1列のカード(スマホで押しやすい)。選ぶと、そのカードのすぐ下に説明が開く。
+# 開いているカードをもう一度押すと閉じる。
+for k in STAIN_TYPES:
+    is_sel = st.session_state["selected"] == k
+    label = ("▼ " if is_sel else "") + f"**{STAIN_TYPES[k][0]}**\n\n例: {STAIN_TYPES[k][1]}"
+    if st.button(
+        label,
+        key=f"btn_{k}",
+        type="primary" if is_sel else "secondary",
+        use_container_width=True,
+    ):
+        st.session_state["selected"] = None if is_sel else k
+        st.rerun()
+    if is_sel:
+        render_guide(k)
+
+st.caption("※ 水洗い不可の衣類や高価な衣類は、クリーニング店に相談してください。")
+
+with st.expander("参考にした情報"):
+    st.markdown(
+        "- [Texas A&M AgriLife Extension: Quick Stain Removal Guide](https://agrilifeextension.tamu.edu/wp-content/uploads/2025/04/Quick-Stain-Removal-Guide.pdf)\n"
+        "- [Michigan State University Extension: 家庭でのシミ抜きガイド(E1453)](https://archive.lib.msu.edu/DMC/extension_publications/E1453/e1453_82.pdf)\n"
+        "- [Mississippi State University Extension: How to Remove Pesky Stains](https://extension.msstate.edu/blog/how-remove-pesky-stains)\n"
+        "- [Illinois Extension: Stain Removal Guide](https://dev.web.extension.illinois.edu/stain/general_fabrics.cfm)\n"
+        "- [Tide: How to Remove Ink Stains](https://tide.com/en-us/how-to-wash-clothes/how-to-remove-stains/ink-stains)\n"
+        "- [macaro-ni: 自宅でできるシミ抜き](https://macaro-ni.jp/11715)\n"
+        "- [All About: 油性汚れと漂白剤](https://news.allabout.co.jp/articles/o/tu/112259/)"
+    )
