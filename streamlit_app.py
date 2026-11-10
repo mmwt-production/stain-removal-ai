@@ -1,11 +1,10 @@
 import json
 import os
-import uuid
 
 import streamlit as st
 import streamlit.components.v1 as components
 
-from image_analysis import get_dominant_color, classify_color, COLOR_BUCKETS
+from image_analysis import COLOR_BUCKETS
 from matcher import rank_candidates
 from learning import make_bonus_fn
 import db
@@ -70,34 +69,14 @@ COLORS = [UNKNOWN] + list(COLOR_BUCKETS.keys())
 st.title("🧺 シミ抜きAI判定")
 
 # ---------- 入力 ----------
-st.subheader("1. シミの写真(なくてもOK)")
-st.caption(
-    "写真があると色を自動で判定します。写真なしの場合は、下で色を選んでください。"
-    "撮る場合はシミを画面の中央に。"
-)
-
-tab_cam, tab_file = st.tabs(["📷 その場で撮影", "🖼 ファイルから選ぶ"])
-with tab_cam:
-    cam_photo = st.camera_input("シミを撮影", label_visibility="collapsed")
-with tab_file:
-    file_photo = st.file_uploader(
-        "写真を選択", type=["jpg", "jpeg", "png", "webp"], label_visibility="collapsed"
-    )
-
-photo = cam_photo or file_photo
-
 # 「状態」がブラウザ翻訳で「州」になるため、翻訳しない指定つきの見出しにする
 st.markdown(
-    '<h3 translate="no" lang="ja">2. 状態を教えてください</h3>',
+    '<h3 translate="no" lang="ja">状態を教えてください</h3>',
     unsafe_allow_html=True,
 )
 st.caption("「わからない」を選んだ項目は無視して判定します。答えるほど精度が上がります。")
 
-if photo is None:
-    manual_color = st.selectbox("シミの色", COLORS)
-else:
-    manual_color = None
-    st.info("色は写真から自動で判定します。")
+manual_color = st.selectbox("シミの色", COLORS)
 
 spread = st.selectbox("水で濡らすと、シミは?", [UNKNOWN] + SPREAD)
 texture = st.selectbox("シミの手触りは?", [UNKNOWN] + TEXTURE)
@@ -111,14 +90,7 @@ def none_if_unknown(v):
 
 if st.button("判定する", type="primary", use_container_width=True):
     filepath = ""
-    if photo is not None:
-        ext = os.path.splitext(getattr(photo, "name", "") or "")[1] or ".jpg"
-        filepath = os.path.join(UPLOAD_FOLDER, f"{uuid.uuid4().hex}{ext}")
-        with open(filepath, "wb") as f:
-            f.write(photo.getbuffer())
-        color_name = classify_color(get_dominant_color(filepath))
-    else:
-        color_name = none_if_unknown(manual_color)
+    color_name = none_if_unknown(manual_color)
 
     s_spread = none_if_unknown(spread)
     s_texture = none_if_unknown(texture)
@@ -126,7 +98,7 @@ if st.button("判定する", type="primary", use_container_width=True):
 
     answered = sum(x is not None for x in (color_name, s_spread, s_texture, s_smell))
     if answered == 0:
-        st.warning("写真か、いずれか1つ以上の質問に答えてください。")
+        st.warning("いずれか1つ以上の質問に答えてください。")
     else:
         bonus_fn, n_learned = make_bonus_fn(KB)
         ranked = rank_candidates(
@@ -165,11 +137,7 @@ res = st.session_state.get("result")
 if res:
     st.divider()
     st.header("判定結果")
-    if res["image_path"]:
-        st.image(res["image_path"], width=200)
-        st.write(f"検出色: **{res['color_name']}**")
-    else:
-        st.write(f"写真なしで判定(色: **{res['color_name']}**)")
+    st.write(f"シミの色: **{res['color_name']}**")
     st.caption(f"🧠 学習データ: {res['n_learned']}件の記録を参考にしました")
     if db.last_error:
         st.warning(db.last_error)
