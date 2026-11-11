@@ -5,3 +5,6 @@ static/uploads/*
 !static/uploads/.gitkeep
 .venv/
 .streamlit/secrets.toml
+
+# 参考資料の写真(公開しない)
+[0-9][0-9][0-9]_0.jpg
