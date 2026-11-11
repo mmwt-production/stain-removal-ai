@@ -1,4 +1,5 @@
 import json
+import os
 
 import streamlit as st
 import streamlit.components.v1 as components
@@ -27,12 +28,13 @@ components.html(
 
 
 @st.cache_resource
-def load_kb():
+def load_kb(mtime):
+    # mtime を引数にして、ファイルを書き換えたら読み直す(古い内容が残らないように)
     with open("knowledge_base.json", encoding="utf-8") as f:
         return json.load(f)
 
 
-KB = load_kb()
+KB = load_kb(os.path.getmtime("knowledge_base.json"))
 STAINS = {s["id"]: s for s in KB["stains"]}
 CHEMICALS = {c["name"]: c for c in KB.get("chemicals", [])}
 
@@ -158,7 +160,9 @@ def render_guide(key):
 
         c = STAINS[sid]
         st.markdown(f"#### {c['name']}の落とし方")
-        st.write("**使う薬品:** " + "、".join(c["chemicals"]))
+        st.success(f"**使う薬品: {c['chemicals'][0]}**")
+        if len(c["chemicals"]) > 1:
+            st.write("落ちない・色が残る場合は、続けて: " + "、".join(c["chemicals"][1:]))
         st.markdown("**手順**")
         for i, step in enumerate(c["procedure"], 1):
             st.write(f"{i}. {step}")
