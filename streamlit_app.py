@@ -185,7 +185,9 @@ if "selected" not in st.session_state:
 
 # 1列のカード(スマホで押しやすい)。選ぶと、そのカードのすぐ下に説明が開く。
 # 開いているカードをもう一度押すと閉じる。
-for k in STAIN_TYPES:
+# カードの表示順
+CARD_ORDER = ["oil", "oil_ink", "water", "water_ink", "other"]
+for k in CARD_ORDER:
     is_sel = st.session_state["selected"] == k
     label = ("▼ " if is_sel else "") + f"**{STAIN_TYPES[k][0]}**\n\n例: {STAIN_TYPES[k][1]}"
     if st.button(
